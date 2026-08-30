@@ -1,0 +1,7 @@
+name = "armis-mml-convert"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 무료 티어 기준: 요청 10만 건/일, CPU 시간 10ms/요청.
+# MIDI 변환 하나가 10ms를 넘어가면 요청이 잘릴 수 있으니
+# 아주 큰 파일을 자주 다룬다면 유료 플랜(50ms) 전환을 고려한다.
