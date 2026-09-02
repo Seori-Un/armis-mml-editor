@@ -1,0 +1,2937 @@
+:root{
+  --ink:#050a16;
+  --shell:#0a1330;
+  --rail:#0d1938;
+  --stage-top:#1a2f68;
+  --stage-bottom:#25438b;
+  --foot:#0f1c40;
+  --line:rgba(150,180,255,.14);
+  --line-strong:rgba(180,205,255,.34);
+  --text:#e8f0ff;
+  --muted:#8fa4d4;
+  --dim:#5f74a6;
+  --note-a:#2a8ba6;
+  --note-b:#5fd3dc;
+  --note-edge:#8ff0f2;
+  --chip-a:#6f5bf2;
+  --chip-b:#4ed4c4;
+  --hot:#ffb457;
+  --velocity:#ffb457;
+  --tempo:#b79cff;
+
+  --row-h:13px;
+  --oct-h:156px;
+  --beat-w:40px;
+  --bar-w:160px;
+
+  --display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+         "Pretendard","Noto Sans KR",Arial,sans-serif;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  width:100%;
+  height:100%;
+}
+
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--text);
+  font-family:var(--body);
+  font-size:13px;
+  overflow:hidden;
+}
+
+button,
+input{
+  font-family:inherit;
+  color:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+button:focus-visible,
+input:focus-visible{
+  outline:2px solid var(--note-edge);
+  outline-offset:2px;
+  border-radius:8px;
+}
+
+.app{
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto auto;
+  width:100%;
+  /* 모바일 브라우저는 주소창 높이까지 100vh에 넣는다.
+     그래서 100vh로 잡으면 화면 아래가 주소창에 가려 잘린다.
+     dvh는 실제로 보이는 높이라 잘리지 않는다. */
+  height:100vh;
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+}
+
+
+/* ============================================================
+   TOOLBAR
+============================================================ */
+
+.toolbar{
+  position:relative;
+  z-index:30;
+  background:linear-gradient(180deg,#0b1636,var(--shell));
+  border-bottom:1px solid var(--line-strong);
+}
+
+.bar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 14px;
+}
+
+.bar.file{
+  padding-bottom:2px;
+}
+
+.bar.edit{
+  padding-top:4px;
+  padding-bottom:10px;
+  flex-wrap:wrap;
+}
+
+.spacer{
+  flex:1;
+}
+
+.group{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.divider{
+  width:1px;
+  height:22px;
+  background:var(--line);
+  margin:0 6px;
+}
+
+.ico{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px dashed rgba(160,190,255,.28);
+  border-radius:9px;
+  background:rgba(120,160,255,.05);
+  color:var(--muted);
+  font-size:10px;
+  letter-spacing:-.2px;
+  line-height:1.05;
+  text-align:center;
+  padding:0;
+  transition:
+    background .14s,
+    border-color .14s,
+    color .14s,
+    transform .1s;
+}
+
+/* ============================================================
+   전송부 기호는 글자가 아니라 도형이다
+   ============================================================
+   ▶ ⏸ ► 같은 글자는 사파리가 Apple Color Emoji로 바꿔 그려서,
+   폰트를 지정해도 컬러 이모지가 튀어나온다. 그래서 아예 글자를
+   쓰지 않고 테두리와 사각형으로 직접 그린다. 색은 버튼 글자색
+   (currentColor)을 따르므로 hover·활성 상태에서 함께 변한다.
+   ============================================================ */
+.glyph{
+  display:block;
+  position:relative;
+  width:14px;
+  height:14px;
+}
+
+/* 삼각형 하나 = 오른쪽을 향한 재생 */
+.glyph.play::before{
+  content:"";
+  position:absolute;
+  top:50%;
+  left:52%;
+  transform:translate(-50%,-50%);
+  border-style:solid;
+  border-width:6px 0 6px 10px;
+  border-color:transparent transparent transparent currentColor;
+}
+
+/* 막대 둘 = 일시정지 */
+.glyph.pause::before,
+.glyph.pause::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:3.5px;
+  height:13px;
+  background:currentColor;
+  border-radius:1px;
+}
+
+.glyph.pause::before{ left:2px; }
+.glyph.pause::after{ right:2px; }
+
+/* 네모 = 처음으로 */
+.glyph.stop::before{
+  content:"";
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:11px;
+  height:11px;
+  background:currentColor;
+  border-radius:1.5px;
+}
+
+/* 삼각형 둘 = 한 마디 건너뛰기 */
+.glyph.prev::before,
+.glyph.prev::after,
+.glyph.next::before,
+.glyph.next::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  border-style:solid;
+  border-width:5px 0 5px 8px;
+}
+
+.glyph.next::before,
+.glyph.next::after{
+  border-color:transparent transparent transparent currentColor;
+}
+
+.glyph.next::before{ left:0; }
+.glyph.next::after{ left:7px; }
+
+/* 왼쪽 방향은 테두리를 반대로 준다 */
+.glyph.prev::before,
+.glyph.prev::after{
+  border-width:5px 8px 5px 0;
+  border-color:transparent currentColor transparent transparent;
+}
+
+.glyph.prev::before{ right:0; }
+.glyph.prev::after{ right:7px; }
+
+/* 삼각형 하나 + 세로 막대 = 맨 처음/맨 끝으로.
+   prev/next와 같은 방식으로 currentColor로 직접 그린다. */
+.glyph.first::before,
+.glyph.last::before{
+  content:"";
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  border-style:solid;
+}
+
+.glyph.first::after,
+.glyph.last::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:2.5px;
+  height:12px;
+  background:currentColor;
+  border-radius:1px;
+}
+
+/* ⏮ 막대가 왼쪽, 삼각형은 왼쪽을 향한다 */
+.glyph.first::before{
+  right:1px;
+  border-width:6px 9px 6px 0;
+  border-color:transparent currentColor transparent transparent;
+}
+.glyph.first::after{ left:1px; }
+
+/* ⏭ 삼각형이 오른쪽을 향하고, 막대가 오른쪽 */
+.glyph.last::before{
+  left:1px;
+  border-width:6px 0 6px 9px;
+  border-color:transparent transparent transparent currentColor;
+}
+.glyph.last::after{ right:1px; }
+
+
+/* 선으로 그린 기호(가위 등). 색은 버튼 글자색을 따른다. */
+.glyph-svg{
+  width:15px;
+  height:15px;
+  display:block;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.4;
+  stroke-linecap:round;
+}
+
+
+.ico:hover{
+  background:rgba(120,170,255,.14);
+  border-color:var(--line-strong);
+  color:var(--text);
+}
+
+.ico:active{
+  transform:translateY(1px);
+}
+
+.ico.wide{
+  width:auto;
+  min-width:34px;
+  padding:0 10px;
+  gap:7px;
+  display:inline-flex;
+  align-items:center;
+}
+
+.ico.lg{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  font-size:11px;
+}
+
+.ico.sm{
+  width:24px;
+  height:24px;
+  border-radius:7px;
+  font-size:9px;
+}
+
+.ico.on{
+  border-style:solid;
+  border-color:rgba(95,211,220,.6);
+  background:rgba(95,211,220,.14);
+  color:var(--note-edge);
+}
+
+.ico .lbl{
+  font-size:12px;
+  color:var(--text);
+}
+
+.zoom-read{
+  cursor:pointer;
+  font-family:var(--display);
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:.06em;
+  min-width:44px;
+  text-align:center;
+}
+
+
+/* 말 고르기 — 오른쪽 위. 누르면 창이 뜬다. */
+.lang-button{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  cursor:pointer;
+  font-family:var(--display);
+  font-size:12px;
+  letter-spacing:.04em;
+  color:var(--muted);
+  background:rgba(120,160,255,.05);
+  border:1px dashed rgba(160,190,255,.28);
+  border-radius:9px;
+  padding:6px 11px;
+  transition:
+    color .14s,
+    border-color .14s,
+    background .14s,
+    transform .1s;
+}
+
+.lang-button:hover{
+  color:var(--text);
+  border-color:var(--line-strong);
+  background:rgba(120,170,255,.14);
+}
+
+.lang-button:active{
+  transform:translateY(1px);
+}
+
+.lang-button-mark{
+  font-size:13px;
+  line-height:1;
+  opacity:.9;
+}
+
+.lang-button-name{
+  line-height:1;
+}
+
+
+/* 창 안의 말 목록 */
+.lang-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin-top:16px;
+}
+
+.lang-option{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width:100%;
+  cursor:pointer;
+  text-align:left;
+  font-family:var(--display);
+  font-size:14px;
+  letter-spacing:.02em;
+  color:var(--muted);
+  background:rgba(120,160,255,.05);
+  border:1px solid rgba(160,190,255,.16);
+  border-radius:11px;
+  padding:11px 14px;
+  transition:
+    color .14s,
+    border-color .14s,
+    background .14s,
+    transform .1s;
+}
+
+.lang-option:hover{
+  color:var(--text);
+  border-color:rgba(160,190,255,.4);
+  background:rgba(120,170,255,.15);
+}
+
+.lang-option:active{
+  transform:translateY(1px);
+}
+
+.lang-option.current{
+  color:var(--note-edge);
+  border-color:rgba(95,211,220,.6);
+  background:rgba(95,211,220,.14);
+}
+
+/* 지금 쓰는 말에만 붙는 체크 */
+.lang-option-check{
+  font-size:13px;
+  opacity:0;
+}
+
+.lang-option.current .lang-option-check{
+  opacity:1;
+}
+
+
+/* ============================================================
+   STAGE
+============================================================ */
+
+.stage{
+  position:relative;
+  z-index:1;
+  display:grid;
+  /* 첫 칸은 auto — 트랙 목록(.rail)의 너비를 따르고,
+     목록을 접으면(display:none) 칸도 함께 사라진다. */
+  grid-template-columns:auto minmax(0,1fr) 232px;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+
+
+/* ============================================================
+   LEFT RAIL
+============================================================ */
+
+.rail{
+  width:170px;
+  box-sizing:border-box;
+  min-height:0;
+  background:var(--rail);
+  border-right:1px solid var(--line-strong);
+  padding:14px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+
+/* ── 트랙 목록 접기/펼치기 ──
+   제목 줄의 ◀ 를 누르면 목록이 통째로 사라지고,
+   왼쪽 가장자리에 ▶ 손잡이 하나만 남는다. */
+body.rail-collapsed .rail{
+  display:none;
+}
+
+/* 첫 칸(auto)만 비우면 남은 판과 패널이 한 칸씩 밀려 들어가
+   화면이 통째로 어긋난다. 접힌 동안에는 칸 배치를 새로 적는다. */
+body.rail-collapsed .stage{
+  grid-template-columns:minmax(0,1fr) 232px;
+}
+
+.rail-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+
+/* 선으로 그린 화살촉. 색은 currentColor를 따른다. */
+.chev{
+  display:block;
+  width:7px;
+  height:7px;
+  border-right:2px solid currentColor;
+  border-bottom:2px solid currentColor;
+}
+
+/* 회전하면 화살촉(point)이 한쪽으로 튀어나와 시각 중심이
+   반대쪽으로 쏠린다. 화살촉은 회전 전 기준 언제나 오른쪽-아래
+   모서리이므로, 그 반대(-,-)로 조금 밀면 어느 방향이든 가운데다.
+   (translate는 rotate 뒤에 적혀 회전된 좌표계에서 움직인다) */
+.chev.left{ transform:rotate(135deg) translate(-15%,-15%); }
+.chev.right{ transform:rotate(-45deg) translate(-15%,-15%); }
+.chev.up{ transform:rotate(-135deg) translate(-15%,-15%); }
+
+.rail-collapse{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:transparent;
+  color:var(--dim);
+  cursor:pointer;
+  transition:color .14s, border-color .14s;
+}
+
+.rail-collapse:hover{
+  color:var(--muted, #cfd8dc);
+  border-color:var(--line-strong);
+}
+
+/* 접힌 동안 왼쪽 가장자리에 붙는 펼치기 손잡이.
+   상자 없이 흰 화살표만 띄운다 — 뒤가 어떤 색이어도 보이게
+   그림자를 살짝 깐다. 누르는 자리는 화살표보다 넉넉하다. */
+.rail-expand{
+  display:none;
+  position:absolute;
+  left:0;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:60;
+  align-items:center;
+  justify-content:center;
+  width:30px;
+  height:88px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:rgba(255,255,255,.82);
+  cursor:pointer;
+  transition:color .14s;
+}
+
+.rail-expand:hover{
+  color:#fff;
+}
+
+.rail-expand .chev{
+  width:11px;
+  height:11px;
+  border-right-width:3px;
+  border-bottom-width:3px;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.65));
+}
+
+body.rail-collapsed .rail-expand{
+  display:flex;
+}
+
+.rail-empty{
+  margin:2px 2px 4px;
+  color:var(--dim);
+  font-size:11.5px;
+  line-height:1.65;
+}
+
+.out-empty{
+  margin:0;
+  padding:4px 2px;
+  color:var(--dim);
+  font-size:12px;
+}
+
+.rail-title{
+  font-family:var(--display);
+  font-size:10px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--dim);
+  padding-left:2px;
+}
+
+.inst{
+  --track-a:#2a8ba6;
+  --track-b:#5fd3dc;
+  position:relative;
+  border-radius:999px;
+  padding:1px;
+  background:linear-gradient(120deg,var(--track-b),var(--track-a));
+  cursor:pointer;
+  transition:
+    transform .12s,
+    box-shadow .14s,
+    opacity .14s;
+  contain:layout style paint;
+}
+
+.inst:hover{
+  transform:translateY(-1px);
+}
+
+/* 켜진 트랙 — 색이 살아 있고 아래 출력 줄에도 나온다 */
+.inst.on{
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+
+/* 꺼진 트랙 — 목록에는 남지만 화면에서 빠진다 */
+.inst.off{
+  background:rgba(160,190,255,.22);
+  opacity:.5;
+}
+
+.inst.off .inst-body{
+  background:rgba(10,20,50,.72);
+}
+
+.inst.off:hover{
+  opacity:.78;
+}
+
+.inst-body{
+  min-width:0;
+  border-radius:999px;
+  padding:9px 8px 9px 14px;
+  background:rgba(10,20,50,.42);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.inst.track-selected .inst-body{
+  background:rgba(10,20,50,.10);
+}
+
+.inst.track-selected{
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.28),
+    0 8px 22px rgba(0,0,0,.4);
+}
+
+.inst-text{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  user-select:none;
+}
+
+.inst-name{
+  min-width:0;
+  font-family:var(--display);
+  font-size:12.5px;
+  font-weight:400;
+  letter-spacing:.01em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.inst-sub{
+  min-width:0;
+  font-size:10px;
+  color:rgba(232,240,255,.72);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.inst.off .inst-name,
+.inst.off .inst-sub{
+  color:var(--muted);
+}
+
+.inst-swap{
+  flex:0 0 auto;
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.12);
+  color:#f2f7ff;
+  font-size:11px;
+  padding:0;
+}
+
+.inst-swap:hover{
+  background:rgba(255,255,255,.3);
+}
+
+.track-add{
+  border-radius:999px;
+  padding:12px;
+  border:1px dashed rgba(160,190,255,.3);
+  background:rgba(120,160,255,.05);
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+
+.track-add:hover{
+  background:rgba(120,170,255,.12);
+  color:var(--text);
+}
+
+
+/* ============================================================
+   CENTER
+============================================================ */
+
+.center{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  min-height:0;
+  background:var(--stage-top);
+  overflow:hidden;
+}
+
+/* 큰 제목("time table")과 왼쪽 세로 글씨("octave")를 걷어내고
+   템포만 남긴 얇은 줄이다. 판이 그만큼 넓어진다. */
+.center-head{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  position:relative;
+  padding:7px 16px;
+  border-bottom:1px solid var(--line-strong);
+  background:linear-gradient(180deg,#16295c,#1a2f68);
+}
+
+.center-head .tempo-read{
+  font-family:var(--display);
+  font-size:12px;
+  letter-spacing:.1em;
+  color:var(--muted);
+  cursor:pointer;
+  user-select:none;
+}
+
+.center-head .tempo-read:hover{
+  color:var(--note-edge);
+}
+
+/* 재생 시간 — 템포 옆에 나란히. 숫자가 바뀔 때 좌우로 흔들리지
+   않도록 고정폭 숫자를 쓴다. */
+.center-head .time-read{
+  margin-left:14px;
+  padding-left:14px;
+  border-left:1px solid var(--line);
+  font-family:var(--display);
+  font-size:12px;
+  letter-spacing:.08em;
+  color:var(--dim);
+  user-select:none;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+
+.tempo-editor{
+  position:absolute;
+  left:12px;
+  top:50%;
+  transform:translateY(-50%);
+  width:125px;
+  height:26px;
+  display:none;
+  border:1px solid rgba(95,211,220,.55);
+  border-radius:7px;
+  background:#101d3f;
+  color:var(--text);
+  padding:0 8px;
+  font-family:var(--display);
+  font-size:13px;
+  text-align:center;
+}
+
+.tempo-editor.show{
+  display:block;
+}
+
+
+/* ============================================================
+   BOARD
+============================================================ */
+
+.board{
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
+  overflow:auto;
+  position:relative;
+  z-index:1;
+  background:var(--stage-top);
+}
+
+.board-inner{
+  position:relative;
+  /* 실제 폭은 renderBoardSize()가 마디 수에 맞춰 넣는다 */
+  width:5120px;
+  min-width:5120px;
+}
+
+
+/* ============================================================
+   RULER
+============================================================ */
+
+.ruler{
+  position:sticky;
+  top:0;
+  z-index:20;
+  height:58px;
+  background:linear-gradient(180deg,#132353,#16285d);
+  border-bottom:1px solid var(--line-strong);
+  cursor:crosshair;
+}
+
+.bar-tick{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:var(--bar-w);
+  border-left:1px solid var(--line);
+  padding:5px 0 0 7px;
+  pointer-events:none;
+}
+
+.bar-tick b{
+  font-family:var(--display);
+  font-weight:400;
+  font-size:11px;
+  color:var(--dim);
+  letter-spacing:.06em;
+}
+
+
+/* ============================================================
+   MARKER
+============================================================ */
+
+.marker{
+  position:absolute;
+  transform:translateX(-1px);
+  font-family:var(--display);
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.04em;
+  padding:2px 8px 3px;
+  border-radius:0 8px 8px 0;
+  white-space:nowrap;
+  cursor:pointer;
+  user-select:none;
+  z-index:30;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+  transition:
+    filter .12s,
+    transform .12s,
+    box-shadow .12s;
+  contain:layout style paint;
+}
+
+/* 색은 renderMarkers()가 트랙 색으로 덮어쓴다. 여기 값은 기본값이다. */
+.tempo-marker{
+  top:8px;
+  color:#100a28;
+  background:var(--tempo);
+}
+
+.velocity-marker{
+  top:32px;
+  color:#0a1330;
+  background:var(--velocity);
+}
+
+/* 여러 트랙 마커가 한자리에 몰렸을 때 */
+.marker.stacked{
+  background:linear-gradient(120deg,var(--chip-a),var(--chip-b));
+  color:#f2f7ff;
+  letter-spacing:.12em;
+}
+
+.marker-menu{
+  position:fixed;
+  z-index:220;
+  display:none;
+  width:242px;
+  max-height:300px;
+  overflow-y:auto;
+  padding:10px;
+  border:1px solid var(--line-strong);
+  border-radius:12px;
+  background:rgba(10,19,48,.97);
+  box-shadow:0 18px 50px rgba(0,0,0,.45);
+  backdrop-filter:blur(12px);
+}
+
+.marker-menu.show{
+  display:block;
+}
+
+.marker-menu-title{
+  padding:4px 7px 10px;
+  font-family:var(--display);
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+
+.marker-option{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 9px;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  text-align:left;
+}
+
+.marker-option:hover{
+  border-color:rgba(95,211,220,.3);
+  background:rgba(95,211,220,.10);
+  color:var(--text);
+}
+
+.marker-option.current{
+  border-color:rgba(255,180,87,.4);
+  background:rgba(255,180,87,.10);
+  color:var(--hot);
+}
+
+.marker-option-dot{
+  flex:0 0 auto;
+  width:9px;
+  height:9px;
+  border-radius:999px;
+}
+
+.marker-option-name{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  overflow:hidden;
+}
+
+.marker-option-track{
+  font-size:12px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.marker-option-where{
+  font-size:10px;
+  color:var(--dim);
+  white-space:nowrap;
+}
+
+.marker-option-value{
+  flex:0 0 auto;
+  font-family:var(--display);
+  font-size:11px;
+}
+
+/* 음량이 바뀌는 자리의 노트에 붙는 표시 */
+.note .vel-flag{
+  position:absolute;
+  left:0;
+  bottom:13px;
+  padding:0 4px;
+  border-radius:4px;
+  background:var(--velocity);
+  color:#0a1330;
+  font-family:var(--display);
+  font-size:9px;
+  line-height:1.5;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+/* 마커가 아니라 이 음 하나에만 걸린 값 */
+.note .vel-flag.own{
+  background:var(--note-edge);
+  color:#06202a;
+}
+
+.note.other .vel-flag{
+  display:none;
+}
+
+.note.vel-mark::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:-2px;
+  bottom:-2px;
+  width:2px;
+  border-radius:2px;
+  background:var(--velocity);
+  pointer-events:none;
+}
+
+.marker:hover{
+  filter:brightness(1.12);
+  box-shadow:0 3px 12px rgba(0,0,0,.35);
+}
+
+.marker.selected{
+  box-shadow:
+    0 0 0 1px #fff,
+    0 3px 12px rgba(255,255,255,.28);
+}
+
+.tempo-marker.selected{
+  background:#e2d7ff;
+}
+
+.velocity-marker.selected{
+  background:#fff0bd;
+}
+
+
+/* ============================================================
+   PLAYHEAD
+============================================================ */
+
+.playhead{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:2px;
+  background:var(--hot);
+  z-index:25;
+  pointer-events:none;
+  box-shadow:
+    0 0 5px rgba(255,180,87,.45);
+}
+
+.playhead::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:-5px;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:9px solid var(--hot);
+}
+
+
+/* ============================================================
+   GRID
+============================================================ */
+
+.grid{
+  position:relative;
+  z-index:1;
+  width:100%;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(190,215,255,.22) 0 1px,
+      transparent 1px var(--bar-w)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(150,180,255,.09) 0 1px,
+      transparent 1px var(--beat-w)
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(190,215,255,.2) 0 1px,
+      transparent 1px var(--oct-h)
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 13px,
+      rgba(4,10,26,.30) 13px 26px,
+      transparent 26px 39px,
+      rgba(4,10,26,.30) 39px 52px,
+      transparent 52px 65px,
+      rgba(4,10,26,.30) 65px 78px,
+      transparent 78px 104px,
+      rgba(4,10,26,.30) 104px 117px,
+      transparent 117px 130px,
+      rgba(4,10,26,.30) 130px 143px,
+      transparent 143px 156px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(150,180,255,.07) 0 1px,
+      transparent 1px var(--row-h)
+    ),
+    linear-gradient(
+      180deg,
+      var(--stage-top),
+      var(--stage-bottom)
+    );
+  user-select:none;
+  cursor:crosshair;
+}
+
+/* 옥타브 눈금 — 세로로는 격자를 따라 움직이고, 가로로는 왼쪽에 붙어 있는다.
+
+   전에는 스크롤할 때마다 JS로 translateX를 다시 넣었는데, 스크롤 이벤트가
+   그려진 뒤에 오다 보니 눈금이 한 박자씩 늦게 따라와 덜덜 떨렸다.
+   지금은 브라우저가 직접 붙잡는다 — 크기가 0인 sticky 껍데기를 격자 안에 두고
+   눈금은 그 안에 절대 위치로 매단다. 껍데기가 자리를 차지하지 않으므로
+   격자 배치에는 아무 영향이 없다. */
+.oct-sticky{
+  position:sticky;
+  left:0;
+  width:0;
+  height:0;
+  z-index:8;
+}
+
+.oct-scale{
+  position:absolute;
+  left:0;
+  top:0;
+  width:38px;
+  border-right:1px solid var(--line-strong);
+  box-shadow:6px 0 14px rgba(3,7,20,.45);
+}
+
+.oct-cell{
+  height:var(--oct-h);
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(
+    90deg,
+    rgba(5,10,26,.92),
+    rgba(5,10,26,.78)
+  );
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:6px;
+  font-family:var(--display);
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:.06em;
+  pointer-events:none;
+}
+
+
+/* ============================================================
+   NOTE
+============================================================ */
+
+.note{
+  /* --note-a / --note-b 는 renderNotes가 트랙 색으로 덮어쓴다 */
+  position:absolute;
+  height:11px;
+  border-radius:999px;
+  background:linear-gradient(
+    180deg,
+    var(--note-b),
+    var(--note-a)
+  );
+  box-shadow:
+    0 2px 6px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.35);
+  cursor:grab;
+  transition:
+    filter .12s,
+    box-shadow .12s;
+  user-select:none;
+  touch-action:none;
+  overflow:visible;
+}
+
+/* 저사양 최적화: 화면 밖 음표는 그리기를 건너뛴다.
+
+   단, .note 전체에 걸면 안 된다. content-visibility는 paint 격리를
+   함께 거는데, 그러면 노트 상자 밖으로 나가는 자식이 전부 잘린다.
+   기법 이름표(.tech)는 노트 위쪽에, 기법 코드(.tech-code)는 노트
+   오른쪽에, 길이 손잡이는 노트 바깥 3px에 그려지므로 죄다 사라진다.
+
+   그래서 아래 .note.other 에만 건다. 지금 편집 중이 아닌 트랙의
+   노트는 기법 표시가 어차피 display:none이고 손잡이도 붙지 않아
+   잘릴 것이 없다. 화면에 깔린 노트 대부분이 여기 해당하므로
+   최적화 효과는 거의 그대로 남는다. */
+
+.note:active{
+  cursor:grabbing;
+}
+
+.note:hover{
+  filter:brightness(1.12);
+}
+
+.note.sel{
+  background:linear-gradient(
+    180deg,
+    #bff6f8,
+    var(--note-a)
+  );
+  box-shadow:
+    0 0 0 1px var(--note-edge),
+    0 3px 10px rgba(95,211,220,.45);
+}
+
+/* 이음줄 — 두 음이 이어진 자리에 & 를 찍는다 */
+/* 여러 개 고르기로 잡힌 노트 */
+.note.multi{
+  box-shadow:
+    0 0 0 1px var(--hot),
+    0 3px 10px rgba(255,180,87,.4);
+}
+
+/* 아직 자리를 안 정한 노트 — 끌어다 놓기 전까지 반투명하게 떠 있다 */
+.note.ghost{
+  opacity:.55;
+  cursor:grab;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.7),
+    0 6px 18px rgba(0,0,0,.5);
+}
+
+.note.ghost:active{
+  cursor:grabbing;
+}
+
+/* 놓을 수 없는 자리 — 이대로 손을 놓으면 계속 떠 있는다 */
+.note.ghost.blocked{
+  background:linear-gradient(180deg,#ff9aa2,#a63a48);
+  box-shadow:
+    0 0 0 1px rgba(255,154,162,.9),
+    0 6px 18px rgba(0,0,0,.5);
+}
+
+/* 여러 개 고를 때 끌어서 그리는 사각형 */
+.marquee{
+  position:absolute;
+  z-index:9;
+  border:1px solid rgba(255,180,87,.9);
+  background:rgba(255,180,87,.14);
+  border-radius:3px;
+  pointer-events:none;
+}
+
+.grid.picking{
+  cursor:cell;
+}
+
+/* 트랙 하나의 노트를 담는 층. 상자를 만들지 않아(display:contents)
+   노트의 자리 계산과 겹침 순서는 예전과 완전히 같다.
+   층으로 묶는 이유는 그리기를 트랙 단위로 건너뛰기 위해서다. */
+.note-layer{
+  display:contents;
+}
+
+
+/* 지금 편집 중이 아닌 트랙의 노트 — 자리만 보이게 깔아 둔다 */
+.note.other{
+  height:9px;
+  opacity:.4;
+  cursor:pointer;
+  box-shadow:none;
+
+  /* 화면 밖으로 밀려난 것은 그리기를 건너뛴다 (위 설명 참고) */
+  content-visibility:auto;
+  contain-intrinsic-size:32px 9px;
+}
+
+.note.other:hover{
+  opacity:.75;
+}
+
+.note.other .tech,
+.note.other .tech-code{
+  display:none;
+}
+
+.note.has-tech{
+  box-shadow:
+    0 2px 7px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+.note.sel.has-tech{
+  box-shadow:
+    0 0 0 1px var(--hot),
+    0 0 0 2px rgba(255,180,87,.18),
+    0 3px 12px rgba(255,180,87,.28);
+}
+
+.note::after{
+  content:"";
+  position:absolute;
+  right:0;
+  top:0;
+  bottom:0;
+  width:2px;
+  border-radius:0 999px 999px 0;
+  background:rgba(255,255,255,.28);
+  pointer-events:none;
+}
+
+.note-resize-handle{
+  position:absolute;
+  top:-3px;
+  bottom:-3px;
+  width:12px;
+  cursor:ew-resize;
+  opacity:.25;
+  z-index:12;
+  touch-action:none;
+}
+
+.note-resize-handle.end{
+  right:-3px;
+  border-radius:0 999px 999px 0;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,255,255,.18),
+      rgba(255,255,255,.55)
+    );
+}
+
+.note-resize-handle.start{
+  left:-3px;
+  border-radius:999px 0 0 999px;
+  background:
+    linear-gradient(
+      270deg,
+      transparent,
+      rgba(255,255,255,.18),
+      rgba(255,255,255,.55)
+    );
+}
+
+.note:hover .note-resize-handle,
+.note.sel .note-resize-handle{
+  opacity:.9;
+}
+
+.note-resize-handle.end:hover{
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255,180,87,.35),
+      var(--hot)
+    );
+}
+
+.note-resize-handle.start:hover{
+  background:
+    linear-gradient(
+      270deg,
+      transparent,
+      rgba(255,180,87,.35),
+      var(--hot)
+    );
+}
+
+.note .tech{
+  position:absolute;
+  left:2px;
+  bottom:14px;
+  white-space:nowrap;
+  font-size:11px;
+  color:#dbe8ff;
+  text-shadow:0 1px 3px rgba(0,0,0,.6);
+  pointer-events:none;
+}
+
+.note .tech-code{
+  position:absolute;
+  left:100%;
+  top:50%;
+  transform:translate(5px,-50%);
+  white-space:nowrap;
+  font-family:var(--display);
+  font-size:9px;
+  color:var(--hot);
+  opacity:.85;
+  pointer-events:none;
+}
+
+
+/* ============================================================
+   INSPECTOR
+============================================================ */
+
+.inspector{
+  min-height:0;
+  background:var(--rail);
+  border-left:1px solid var(--line-strong);
+  padding:14px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.sect-title{
+  font-family:var(--display);
+  font-size:10px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:8px;
+}
+
+.row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+.len-sep{
+  align-self:center;
+  margin:0 2px 0 6px;
+  font-family:var(--display);
+  font-size:9px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+
+.len-btn{
+  min-width:36px;
+  height:30px;
+  padding:0 8px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(120,160,255,.06);
+  font-family:var(--display);
+  font-size:12px;
+  color:var(--muted);
+}
+
+.len-btn:hover{
+  background:rgba(120,170,255,.14);
+  color:var(--text);
+}
+
+.len-btn.on{
+  border-color:rgba(95,211,220,.6);
+  background:rgba(95,211,220,.14);
+  color:var(--note-edge);
+}
+
+.vel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  margin-bottom:6px;
+}
+
+.vel-val{
+  font-family:var(--display);
+  font-size:16px;
+  color:var(--note-edge);
+}
+
+input[type=range]{
+  width:100%;
+  accent-color:#5fd3dc;
+}
+
+.vel-scale{
+  display:flex;
+  justify-content:space-between;
+  margin-top:2px;
+  font-family:var(--display);
+  font-size:10px;
+  color:var(--dim);
+}
+
+.tech-chip{
+  padding:5px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(120,160,255,.06);
+  font-size:12px;
+  color:var(--muted);
+  transition:
+    background .12s,
+    border-color .12s,
+    color .12s;
+}
+
+.tech-chip:hover{
+  background:rgba(120,170,255,.14);
+  color:var(--text);
+}
+
+.tech-chip.on{
+  border-color:rgba(255,180,87,.6);
+  background:rgba(255,180,87,.14);
+  color:var(--hot);
+}
+
+.empty{
+  color:var(--dim);
+  font-size:12px;
+  line-height:1.55;
+}
+
+
+/* ============================================================
+   TEMPO CONTROL
+============================================================ */
+
+.tempo-control{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.tempo-control .tempo-arrow{
+  min-width:36px;
+  height:30px;
+  padding:0 8px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(120,160,255,.06);
+  color:var(--muted);
+  font-size:13px;
+}
+
+.tempo-control .tempo-arrow:hover{
+  background:rgba(120,170,255,.14);
+  color:var(--text);
+}
+
+.tempo-number{
+  min-width:62px;
+  text-align:center;
+  font-family:var(--display);
+  font-size:16px;
+  color:var(--note-edge);
+  cursor:pointer;
+  padding:5px 4px;
+  border-radius:7px;
+}
+
+.tempo-number:hover{
+  background:rgba(95,211,220,.10);
+}
+
+
+/* ============================================================
+   OUTPUT
+============================================================ */
+
+/* 출력 창 위쪽 끌잡이 — 눌러서 위아래로 끌면 출력 창 높이가 바뀐다 */
+.output-resize{
+  position:relative;
+  z-index:101;
+  height:9px;
+  cursor:ns-resize;
+  cursor:row-resize;
+  background:transparent;
+  touch-action:none;
+}
+
+.output-resize::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:40px;
+  height:4px;
+  border-radius:999px;
+  transform:translate(-50%,-50%);
+  background:var(--line-strong);
+  opacity:.6;
+  transition:opacity .14s, background .14s;
+}
+
+.output-resize:hover::before,
+.output-resize.dragging::before{
+  opacity:1;
+  background:rgba(95,211,220,.85);
+}
+
+/* ── 출력 창 완전히 감추기 ──
+   끌잡이를 바닥까지 끌어내리면 출력 창이 통째로 사라지고,
+   화면 아래 가운데에 ▲ 손잡이 하나만 남는다. */
+body.output-collapsed .foot,
+body.output-collapsed .output-resize{
+  display:none;
+}
+
+.output-expand{
+  display:none;
+  position:fixed;
+  left:50%;
+  bottom:env(safe-area-inset-bottom, 0px);
+  transform:translateX(-50%);
+  z-index:120;
+  align-items:center;
+  justify-content:center;
+  width:88px;
+  height:30px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:rgba(255,255,255,.82);
+  cursor:pointer;
+  transition:color .14s;
+}
+
+.output-expand:hover{
+  color:#fff;
+}
+
+.output-expand .chev{
+  width:11px;
+  height:11px;
+  border-right-width:3px;
+  border-bottom-width:3px;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.65));
+}
+
+body.output-collapsed .output-expand{
+  display:flex;
+}
+
+.foot{
+  position:relative;
+  z-index:100;
+  min-width:0;
+  background:var(--foot);
+  border-top:1px solid var(--line-strong);
+  padding:12px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  isolation:isolate;
+
+  /* 트랙이 많아지면 여기가 끝없이 자라 편집 무대를 밀어낸다.
+     화면의 1/3까지만 쓰고 그 뒤로는 이 칸 안에서 굴린다. */
+  max-height:34vh;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+
+.out-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+  contain:layout style paint;
+}
+
+.out-dot{
+  flex:0 0 auto;
+  width:9px;
+  height:9px;
+  border-radius:999px;
+}
+
+.out-name{
+  width:96px;
+  text-align:right;
+  font-family:var(--display);
+  font-size:13px;
+  color:var(--muted);
+  letter-spacing:.03em;
+  flex:0 0 auto;
+}
+
+.out-field{
+  flex:1 1 auto;
+  min-width:0;
+  height:30px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(196,206,224,.72);
+  color:#101b34;
+  padding:0 10px;
+  font-family:ui-monospace,Consolas,Menlo,monospace;
+  font-size:12px;
+  transition:box-shadow .14s, background .14s;
+}
+
+.out-field:focus{
+  background:#fff;
+  box-shadow:0 0 0 2px rgba(95,211,220,.55);
+  outline:none;
+}
+
+/* 읽을 수 없는 MML — 고칠 때까지 그대로 둔다 */
+.out-field.bad{
+  background:rgba(255,190,196,.92);
+  box-shadow:0 0 0 2px rgba(255,120,135,.75);
+}
+
+.out-field::placeholder{
+  color:#5a6780;
+}
+
+.out-len{
+  font-family:var(--display);
+  font-size:11px;
+  color:var(--dim);
+  min-width:58px;
+  text-align:right;
+  flex:0 0 auto;
+  font-variant-numeric:tabular-nums;
+}
+
+/* 게임 한도(3000)를 넘었다 — 붙여넣으면 뒤가 잘린다 */
+.out-len.over{
+  color:#ff6b7a;
+  font-weight:600;
+}
+
+
+/* ============================================================
+   SCROLLBAR
+============================================================
+   모바일은 스크롤바를 평소에 숨긴다. 굴릴 수 있는 곳인지 눈으로 알 수
+   없어서, 굴리는 칸에는 언제나 보이는 막대를 둔다. */
+
+.board,
+.foot,
+.rail,
+.inspector{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(150,190,255,.45) transparent;
+}
+
+.board::-webkit-scrollbar,
+.foot::-webkit-scrollbar,
+.rail::-webkit-scrollbar,
+.inspector::-webkit-scrollbar{
+  width:10px;
+  height:12px;
+}
+
+.board::-webkit-scrollbar-track,
+.foot::-webkit-scrollbar-track,
+.rail::-webkit-scrollbar-track,
+.inspector::-webkit-scrollbar-track{
+  background:rgba(5,10,26,.5);
+  border-radius:999px;
+}
+
+.board::-webkit-scrollbar-thumb,
+.foot::-webkit-scrollbar-thumb,
+.rail::-webkit-scrollbar-thumb,
+.inspector::-webkit-scrollbar-thumb{
+  border:2px solid transparent;
+  border-radius:999px;
+  background:rgba(150,190,255,.45);
+  background-clip:content-box;
+}
+
+.board::-webkit-scrollbar-thumb:hover,
+.foot::-webkit-scrollbar-thumb:hover,
+.rail::-webkit-scrollbar-thumb:hover,
+.inspector::-webkit-scrollbar-thumb:hover{
+  background:rgba(180,215,255,.7);
+  background-clip:content-box;
+}
+
+.board::-webkit-scrollbar-corner,
+.foot::-webkit-scrollbar-corner{
+  background:transparent;
+}
+
+
+/* ============================================================
+   MENUS
+============================================================ */
+
+.tech-menu,
+.instrument-menu{
+  position:fixed;
+  z-index:200;
+  display:none;
+  border:1px solid var(--line-strong);
+  background:rgba(10,19,48,.97);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(12px);
+}
+
+.tech-menu.show,
+.instrument-menu.show{
+  display:block;
+}
+
+.tech-menu{
+  width:270px;
+  max-height:360px;
+  padding:10px;
+  overflow-y:auto;
+  border-radius:12px;
+}
+
+.instrument-menu{
+  width:240px;
+  max-height:430px;
+  overflow-y:auto;
+  padding:12px;
+  border-radius:18px;
+}
+
+.tech-menu-title,
+.instrument-menu-title{
+  padding:4px 7px 11px;
+  font-family:var(--display);
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+
+.tech-menu-empty{
+  padding:12px 6px;
+  color:var(--dim);
+  font-size:12px;
+}
+
+.tech-option{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 9px;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  text-align:left;
+}
+
+.tech-option:hover{
+  border-color:rgba(95,211,220,.3);
+  background:rgba(95,211,220,.10);
+  color:var(--text);
+}
+
+.tech-option.active{
+  border-color:rgba(255,180,87,.35);
+  background:rgba(255,180,87,.10);
+  color:var(--hot);
+}
+
+.tech-option-name{
+  font-size:12px;
+}
+
+.tech-option-code{
+  font-family:var(--display);
+  font-size:11px;
+  color:var(--hot);
+}
+
+.instrument-menu-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+
+.instrument-option{
+  width:100%;
+  min-height:36px;
+  padding:8px 15px;
+  border:1px solid rgba(160,190,255,.18);
+  border-radius:999px;
+  background:
+    linear-gradient(
+      120deg,
+      rgba(111,91,242,.16),
+      rgba(78,212,196,.10)
+    );
+  color:var(--muted);
+  text-align:center;
+  font-family:var(--display);
+  font-size:13px;
+}
+
+.instrument-option:hover{
+  border-color:rgba(95,211,220,.55);
+  background:
+    linear-gradient(
+      120deg,
+      rgba(111,91,242,.35),
+      rgba(78,212,196,.24)
+    );
+  color:var(--text);
+}
+
+.instrument-option.current{
+  border-color:rgba(95,211,220,.75);
+  background:
+    linear-gradient(
+      120deg,
+      rgba(111,91,242,.42),
+      rgba(78,212,196,.28)
+    );
+  color:var(--note-edge);
+}
+
+
+/* ============================================================
+   FILE STATUS
+============================================================ */
+
+.file-status{
+  font-size:12px;
+  color:var(--dim);
+  max-width:42vw;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.file-status.busy{
+  color:var(--note-edge);
+}
+
+.file-status.bad{
+  color:#ffb4bc;
+}
+
+
+/* ============================================================
+   DIALOG
+============================================================ */
+
+.dialog-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:400;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(3,7,20,.66);
+  backdrop-filter:blur(6px);
+  opacity:0;
+  transition:opacity .16s ease;
+}
+
+.dialog-backdrop.show{
+  display:flex;
+}
+
+.dialog-backdrop.visible{
+  opacity:1;
+}
+
+.dialog{
+  width:100%;
+  max-width:340px;
+  border-radius:20px;
+  padding:1px;
+  background:linear-gradient(140deg,var(--chip-a),var(--chip-b));
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.55),
+    0 0 0 1px rgba(160,190,255,.10);
+  transform:translateY(10px) scale(.97);
+  transition:
+    transform .18s cubic-bezier(.2,.8,.3,1);
+}
+
+.dialog-backdrop.visible .dialog{
+  transform:none;
+}
+
+.dialog-body{
+  border-radius:19px;
+  padding:22px 22px 18px;
+  background:linear-gradient(180deg,#14224c,#0d1836);
+}
+
+.dialog-eyebrow{
+  font-family:var(--display);
+  font-size:10px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+
+.dialog-title{
+  margin:9px 0 0;
+  font-family:var(--display);
+  font-weight:400;
+  font-size:19px;
+  letter-spacing:.01em;
+  color:var(--text);
+  line-height:1.35;
+}
+
+.dialog-text{
+  margin:9px 0 0;
+  font-size:13px;
+  line-height:1.65;
+  color:var(--muted);
+}
+
+/* 창 안에서 숫자를 물을 때 쓰는 칸 */
+.dialog-number{
+  display:none;
+  width:100%;
+  margin-top:14px;
+  height:38px;
+  padding:0 12px;
+  font-family:var(--display);
+  font-size:16px;
+  text-align:center;
+  color:var(--text);
+  background:#101d3f;
+  border:1px solid rgba(95,211,220,.45);
+  border-radius:9px;
+}
+
+.dialog-number:focus{
+  outline:none;
+  border-color:var(--note-edge);
+}
+
+.dialog-number.show{
+  display:block;
+}
+
+
+.dialog-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:20px;
+}
+
+.dialog-btn{
+  min-width:78px;
+  height:34px;
+  padding:0 15px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:rgba(120,160,255,.07);
+  color:var(--muted);
+  font-size:13px;
+  transition:
+    background .13s,
+    border-color .13s,
+    color .13s;
+}
+
+.dialog-btn:hover{
+  background:rgba(120,170,255,.15);
+  border-color:var(--line-strong);
+  color:var(--text);
+}
+
+.dialog-btn.primary{
+  border-color:rgba(95,211,220,.55);
+  background:rgba(95,211,220,.16);
+  color:var(--note-edge);
+}
+
+.dialog-btn.primary:hover{
+  background:rgba(95,211,220,.26);
+}
+
+.dialog-btn.danger{
+  border-color:rgba(255,138,150,.5);
+  background:rgba(255,110,125,.16);
+  color:#ffb4bc;
+}
+
+.dialog-btn.danger:hover{
+  background:rgba(255,110,125,.28);
+  color:#ffd6db;
+}
+
+
+/* ============================================================
+   TOAST
+============================================================ */
+
+.toast-area{
+  position:fixed;
+  left:50%;
+  bottom:24px;
+  z-index:380;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+
+.toast{
+  padding:9px 16px;
+  border-radius:999px;
+  border:1px solid rgba(160,190,255,.24);
+  background:rgba(16,29,63,.94);
+  color:var(--text);
+  font-size:12.5px;
+  box-shadow:0 12px 30px rgba(0,0,0,.45);
+  opacity:0;
+  transform:translateY(8px);
+  transition:
+    opacity .16s ease,
+    transform .16s ease;
+}
+
+.toast.visible{
+  opacity:1;
+  transform:none;
+}
+
+
+@media(prefers-reduced-motion:reduce){
+
+  .dialog,
+  .dialog-backdrop,
+  .toast{
+    transition:none;
+  }
+
+}
+
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+/* 넓은 화면에서는 좁은 화면 전용 단추들을 감춘다 */
+.narrow-only{
+  display:none;
+}
+
+/* 좁은 화면에서 아래에서 올라온 패널의 머리줄 */
+.inspector-head{
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-family:var(--display);
+  font-size:11px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--dim);
+  padding-bottom:4px;
+  border-bottom:1px solid var(--line);
+}
+
+.inspector-close{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  font-size:18px;
+  line-height:1;
+  color:var(--muted);
+  background:rgba(120,160,255,.06);
+  border:1px solid rgba(160,190,255,.2);
+  border-radius:8px;
+}
+
+.inspector-close:hover{
+  color:var(--text);
+  border-color:var(--line-strong);
+  background:rgba(120,170,255,.15);
+}
+
+
+/* ============================================================
+   화면 크기 기준표
+   ============================================================
+   아래 반응형 규칙이 잡아내는 표준 기기들 (CSS 픽셀 기준).
+   비율만으로는 폰 세로와 좁게 줄인 데스크톱 창을 구별할 수
+   없으므로, 폭과 높이 구간으로 가른다.
+
+   노트북·데스크톱 (기본 배치: 목록 | 판 | 패널 세 칸)
+     1280×800 · 1366×768 · 1440×900 · 1512×982 (맥북 14")
+     1536×864 (윈도 125% 배율) · 1680×1050 · 1920×1080
+
+   태블릿 가로 (≤1366: 패널을 216px로 살짝 좁힘)
+     1024×768 (아이패드) · 1080×810 (에어) · 1180×820
+     1194×834 (프로 11") · 1366×1024 (프로 12.9")
+
+   태블릿 세로 (≤1080: 패널이 아래 서랍이 됨)
+     744×1133 (미니) · 768×1024 · 810×1080 · 820×1180
+     834×1194 · 1024×1366
+
+   큰 폰 · 좁은 태블릿 세로 (≤720: 간격 압축)
+     673×841 (폴드 펼침) · 712×1138 (탭 A 세로)
+
+   폰 세로 (≤480: 목록이 겹침 서랍, 툴바 가로 스크롤)
+     360×800 (갤럭시) · 375×667 (아이폰 SE) · 390×844
+     393×852 (아이폰 15) · 412×915 (픽셀) · 430×932 (프로맥스)
+
+   폰 가로 (높이 ≤500: 위 폰 규칙 + 세로 방향 압축)
+     667×375 · 844×390 · 852×393 · 915×412 · 932×430
+   ============================================================ */
+
+/* ── 태블릿 가로 · 작은 노트북 ──
+   판이 주인공이 되도록 패널 칸만 한 뼘 줄인다. */
+@media(max-width:1366px){
+
+  .stage{
+    grid-template-columns:auto minmax(0,1fr) 216px;
+  }
+
+  body.rail-collapsed .stage{
+    grid-template-columns:minmax(0,1fr) 216px;
+  }
+
+}
+
+/* ── 태블릿 세로 · 높이가 모자란 화면 ──
+   폭이 모자라도(태블릿 세로), 높이가 모자라도(가로 폰,
+   납작하게 줄인 창) 오른쪽 패널을 세울 자리가 없다.
+   두 경우 모두 패널을 아래 서랍으로 바꾼다. */
+@media(max-width:1080px), (max-height:500px){
+
+  .stage{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+
+  /* 좁은 화면은 패널이 떠 있는 서랍이라 칸이 둘뿐 —
+     접히면 판 하나만 남는다 */
+  body.rail-collapsed .stage{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .rail{
+    width:132px;
+  }
+
+  .narrow-only{
+    display:flex;
+  }
+
+  /* ============================================================
+     좁은 화면의 오른쪽 패널
+     ============================================================
+     예전에는 여기서 display:none으로 통째로 감췄다. 그래서 태블릿과
+     폰에서는 세기·기법·템포를 아예 건드릴 수가 없었다.
+
+     이제 감추는 대신 아래에서 올라오는 서랍으로 바꾼다. 툴바의
+     "패널" 단추로 열고 닫는다. 판을 가리지 않도록 높이는 화면의
+     62%까지만 쓰고, 넘치면 그 안에서 스크롤한다.
+     ============================================================ */
+  .inspector{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:200;
+    max-height:62vh;
+    border-left:0;
+    border-top:1px solid var(--line-strong);
+    border-radius:16px 16px 0 0;
+    box-shadow:0 -18px 50px rgba(0,0,0,.45);
+    transform:translateY(102%);
+    transition:transform .2s cubic-bezier(.2,.8,.3,1);
+
+    /* 닫혀 있는 동안에는 손가락이 닿지 않게 한다.
+       transform만으로는 화면 밖 요소가 여전히 눌린다. */
+    visibility:hidden;
+  }
+
+  body.panel-open .inspector{
+    transform:none;
+    visibility:visible;
+  }
+
+  /* 아이폰 등 아래쪽 손잡이 영역만큼 띄운다 */
+  .inspector{
+    padding-bottom:calc(14px + env(safe-area-inset-bottom));
+  }
+
+}
+
+/* ── 큰 폰 · 좁은 태블릿 세로 (폴드 펼침, 탭 A 등) ── */
+@media(max-width:720px){
+
+  .foot{
+    max-height:40vh;
+    padding:10px 12px;
+  }
+
+  .out-name{
+    width:64px;
+    font-size:11px;
+  }
+
+
+  .rail{
+    width:110px;
+    padding:10px 8px;
+  }
+
+  .inst-body{
+    padding:10px;
+  }
+
+  .inst-name{
+    font-size:13px;
+  }
+
+
+  .bar.edit{
+    gap:5px;
+  }
+
+  .divider{
+    margin:0 2px;
+  }
+
+  .instrument-menu{
+    width:210px;
+  }
+
+}
+
+
+/* ============================================================
+   단축키 설정 창
+   ============================================================ */
+
+.keys-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:400;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(3,7,20,.66);
+  backdrop-filter:blur(6px);
+  opacity:0;
+  transition:opacity .16s ease;
+}
+
+.keys-backdrop.show{
+  display:flex;
+}
+
+.keys-backdrop.visible{
+  opacity:1;
+}
+
+.keys-dialog{
+  width:100%;
+  max-width:440px;
+  max-height:min(640px, calc(100vh - 48px));
+  display:flex;
+  flex-direction:column;
+  border-radius:20px;
+  padding:22px 22px 18px;
+  background:linear-gradient(180deg,#14224c,#0d1836);
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.55),
+    0 0 0 1px rgba(160,190,255,.10);
+  transform:translateY(10px) scale(.97);
+  transition:transform .18s cubic-bezier(.2,.8,.3,1);
+}
+
+.keys-backdrop.visible .keys-dialog{
+  transform:none;
+}
+
+.keys-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.keys-title{
+  margin:9px 0 0;
+  font-family:var(--display);
+  font-weight:400;
+  font-size:19px;
+  letter-spacing:.01em;
+  color:var(--text);
+  line-height:1.35;
+}
+
+.keys-close{
+  flex:0 0 auto;
+  width:28px;
+  height:28px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:transparent;
+  color:var(--dim);
+  font-size:16px;
+  line-height:1;
+  cursor:pointer;
+  transition:color .14s, border-color .14s;
+}
+
+.keys-close:hover{
+  color:var(--text);
+  border-color:var(--line-strong);
+}
+
+.keys-hint{
+  margin:9px 0 12px;
+  font-size:12.5px;
+  line-height:1.6;
+  color:var(--muted);
+}
+
+/* 줄이 많아지면 이 안에서 굴린다 */
+.keys-list{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding-right:4px;
+}
+
+.keys-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 6px;
+  border-radius:9px;
+}
+
+.keys-row:hover{
+  background:rgba(160,190,255,.06);
+}
+
+.keys-label{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.keys-combo{
+  flex:0 0 auto;
+  max-width:190px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:4px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(3,7,20,.4);
+  color:var(--text);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;
+  cursor:pointer;
+  transition:border-color .14s, color .14s, background .14s;
+}
+
+.keys-combo:hover{
+  border-color:var(--line-strong);
+}
+
+/* 키를 기다리는 중 */
+.keys-combo.recording{
+  border-color:rgba(95,211,220,.85);
+  color:rgba(95,211,220,.95);
+  background:rgba(95,211,220,.08);
+}
+
+.keys-row-reset{
+  flex:0 0 auto;
+  width:24px;
+  height:24px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:var(--dim);
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+  transition:color .14s;
+}
+
+.keys-row-reset:hover{
+  color:rgba(95,211,220,.95);
+}
+
+.keys-foot{
+  display:flex;
+  justify-content:flex-end;
+  padding-top:12px;
+}
+
+.keys-reset-all{
+  padding:7px 14px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:transparent;
+  color:var(--muted);
+  font-size:12.5px;
+  cursor:pointer;
+  transition:color .14s, border-color .14s;
+}
+
+.keys-reset-all:hover{
+  color:var(--text);
+  border-color:var(--line-strong);
+}
+
+
+/* ============================================================
+   폰 대응
+   ============================================================
+   폰은 두 얼굴이다 — 세로로 쥐면 폭이 모자라고(≤480px),
+   가로로 눕히면 높이가 모자란다(≤500px). 폭 조건 하나로는
+   가로 폰(932×430 등)이 데스크톱 배치를 받아 버리므로,
+   두 조건을 쉼표(또는)로 묶어 어느 쪽이든 폰 규칙을 준다.
+   app.js의 phoneQuery도 같은 조건이다 — 여기와 어긋나면
+   "처음에 접어 두기"가 엉뚱한 화면에서 발동한다.
+
+   ① 툴바 — 줄바꿈으로 서너 줄이 되면 판이 안 보인다.
+      한 줄로 두고 옆으로 쓸어 넘긴다.
+   ② 트랙 목록 — 기둥이 폰 폭의 30%를 먹는다. 판 위에
+      겹쳐 뜨는 서랍으로 바꾸고, 처음엔 접어 둔다.
+   ③ 손가락 — 마우스보다 굵다. 굵은 포인터에서는 단추와
+      줄 간격을 키운다 (이건 아래 pointer:coarse 블록).
+   ============================================================ */
+
+@media(max-width:480px), (max-height:500px){
+
+  /* ── ① 툴바: 한 줄 + 가로 쓸어 넘기기 ── */
+  .bar.edit{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  .bar.edit::-webkit-scrollbar{
+    display:none;
+  }
+
+  .bar.edit .group,
+  .bar.edit .divider{
+    flex:0 0 auto;
+  }
+
+  /* 스크롤 줄 안에서 늘어나는 빈칸은 의미가 없다 —
+     고정 간격으로 바꾼다 */
+  .bar.edit .spacer{
+    flex:0 0 14px;
+  }
+
+  .bar.file{
+    gap:8px;
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  /* 파일 이름이 길면 저장/열기 단추를 밀어낸다 — 줄여서 끊는다 */
+  .file-status{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* ── ② 트랙 목록: 판 위에 겹쳐 뜨는 서랍 ──
+     흐름에서 빠지므로(stage의 칸도 하나로) 펼쳐도 판이
+     좁아지지 않는다. 판을 건드리면 app.js가 도로 접는다. */
+  .stage,
+  body.rail-collapsed .stage{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .rail{
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    z-index:80;
+    width:min(240px, 78vw);
+    box-shadow:18px 0 44px rgba(0,0,0,.5);
+  }
+
+  /* 서랍 폭이 넉넉해졌으니 트랙 카드도 숨통을 튼다 */
+  .inst-body{
+    padding:12px;
+  }
+
+  /* ── 그 밖의 폰 손질 ── */
+
+  /* iOS는 글자가 16px보다 작은 입력칸에 초점이 가면
+     화면 전체를 확대해 버린다 */
+  input,
+  select,
+  textarea{
+    font-size:16px;
+  }
+
+  .inspector{
+    max-height:70vh;
+  }
+
+  /* 단축키 창을 화면에 꽉 차게 */
+  .keys-backdrop{
+    padding:10px;
+  }
+
+  .keys-dialog{
+    max-width:none;
+    max-height:calc(100vh - 20px);
+    border-radius:16px;
+    padding:16px 16px 12px;
+  }
+
+}
+
+
+/* ── 폰 가로 모드: 세로 방향 압축 ──
+   높이 390~430px에서는 세로 한 픽셀이 아깝다. 툴바 두 줄의
+   위아래 여백을 줄이고, 출력 창과 패널 서랍이 판을 덮는
+   비율을 낮춘다. */
+@media(max-height:500px){
+
+  .bar{
+    padding-top:4px;
+    padding-bottom:4px;
+  }
+
+  .bar.file{
+    padding-bottom:2px;
+  }
+
+  .bar.edit{
+    padding-top:2px;
+    padding-bottom:6px;
+  }
+
+  .foot{
+    max-height:30vh;
+  }
+
+  .inspector{
+    max-height:80vh;
+  }
+
+  .keys-backdrop{
+    padding:8px;
+  }
+
+  .keys-dialog{
+    max-height:calc(100vh - 16px);
+  }
+
+}
+
+
+/* ── ③ 손가락용 크기 ──
+   폭이 아니라 포인터 종류로 가른다 — 가로로 눕힌 폰과
+   태블릿에서도 단추는 굵어야 한다. */
+@media(pointer:coarse){
+
+  .ico{
+    width:40px;
+    height:40px;
+    font-size:11px;
+  }
+
+  .ico.lg{
+    width:46px;
+    height:46px;
+  }
+
+  .rail-collapse{
+    width:28px;
+    height:28px;
+  }
+
+  .keys-row{
+    padding:9px 6px;
+  }
+
+  .keys-combo{
+    padding:7px 12px;
+  }
+
+  /* 판 스크롤 중에 파란 깜빡임이 튀지 않게 */
+  button{
+    -webkit-tap-highlight-color:transparent;
+  }
+
+}
+
+
+/* ============================================================
+   가볍게(저사양) 모드
+   ============================================================
+   app.js가 느린 기기를 알아보고 body.lite를 켠다(단추로도 전환).
+   여기서는 그리기 값이 비싼 치장만 걷는다 — 배치와 크기는 그대로
+   두어야 편집 감각이 바뀌지 않는다.
+
+   비싼 순서: ① backdrop-filter(유리 블러)는 뒤 화면 전체를 다시
+   읽는다 ② 노트 수백 개의 그림자·그라디언트는 스크롤마다 다시
+   칠해진다 ③ transition은 그 다시 칠하기를 여러 프레임으로 늘인다.
+   ============================================================ */
+
+/* ① 유리 블러 */
+body.lite .keys-backdrop,
+body.lite .dialog-backdrop{
+  backdrop-filter:none;
+}
+
+/* ② 노트: 민짜 단색 + 그림자 없음.
+   색·크기·선택 표시는 그대로라 알아보는 데는 지장이 없다. */
+body.lite .note{
+  background:var(--note-a);
+  box-shadow:none;
+}
+
+body.lite .note:hover{
+  filter:none;
+}
+
+body.lite .note.sel{
+  background:#bff6f8;
+  box-shadow:none;
+}
+
+body.lite .note.multi{
+  box-shadow:none;
+}
+
+body.lite .note.ghost{
+  box-shadow:none;
+}
+
+body.lite .playhead{
+  box-shadow:none;
+}
+
+/* 큰 상자들의 무대 그림자 */
+body.lite .keys-dialog,
+body.lite .dialog,
+body.lite .inspector,
+body.lite .rail,
+body.lite .instrument-menu{
+  box-shadow:none;
+}
+
+body.lite .chev,
+body.lite .rail-expand .chev,
+body.lite .output-expand .chev{
+  filter:none;
+}
+
+/* ③ 움직임: 전부 즉시 반응으로 */
+body.lite *,
+body.lite *::before,
+body.lite *::after{
+  transition:none !important;
+  animation:none !important;
+}
+
+
+/* ============================================================
+   폰: 통째로 축소 (비율 유지)
+   ============================================================
+   폰에서는 가장자리 영역(툴바·템포 줄·출력 창·목록·패널)의
+   배치를 데스크톱 그대로 두고 zoom으로 통째로 줄인다.
+   글자·단추·간격이 전부 같은 비율로 작아진다 — 글자가 작아
+   지는 대신 격자가 넓어지는 쪽을 택한 것.
+
+   transform:scale이 아니라 zoom인 이유: scale은 그림만 줄고
+   차지하는 자리는 그대로 남지만, zoom은 자리도 함께 준다.
+   (zoom은 2024년부터 표준 — 크롬·사파리는 예전부터,
+   파이어폭스는 126부터)
+
+   판(.board) 안쪽에는 zoom을 걸지 않는다 — 노트 좌표 계산이
+   전부 픽셀 기준이라 축척이 끼면 잡기/끌기가 어긋난다.
+   판 안쪽 것들(마디 자, 옥타브 눈금)은 아래에서 직접 줄인다.
+   ============================================================ */
+
+@media(max-width:480px), (max-height:500px){
+
+  .toolbar{
+    zoom:0.62;
+  }
+
+  .center-head{
+    zoom:0.7;
+  }
+
+  .foot{
+    zoom:0.72;
+  }
+
+  .rail{
+    zoom:0.8;
+  }
+
+  .inspector{
+    zoom:0.8;
+  }
+
+  .keys-dialog{
+    zoom:0.85;
+  }
+
+  /* iOS는 "보이는 글자"가 16px보다 작은 입력칸에 초점이 가면
+     화면을 멋대로 확대한다. zoom만큼 글자를 역보정해서
+     보이는 크기를 16px로 맞춘다 (16 ÷ 축소비). */
+  .foot input,
+  .foot textarea{
+    font-size:22px;
+  }
+
+  .inspector input,
+  .inspector select,
+  .inspector textarea{
+    font-size:20px;
+  }
+
+  /* ── 짤림 방지: 축소해도 못 들어가면 옆으로 쓸어 넘긴다 ──
+     (파일 줄에는 스크롤이 없어서 저장/열기가 잘려 나갔었다) */
+  .bar.file{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+
+  .bar.file::-webkit-scrollbar{
+    display:none;
+  }
+
+  .bar.file > *{
+    flex:0 0 auto;
+  }
+
+  .bar.file .spacer{
+    flex:0 0 10px;
+  }
+
+  .file-status{
+    flex:0 1 auto;
+    min-width:0;
+    max-width:34vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* ── 판 안쪽: zoom 대신 직접 축소 ── */
+  .ruler{
+    height:40px;
+  }
+
+  .bar-tick{
+    padding:2px 0 0 5px;
+  }
+
+  .bar-tick b{
+    font-size:10px;
+  }
+
+  .marker{
+    font-size:10px;
+    padding:1px 6px 2px;
+  }
+
+  .tempo-marker{
+    top:3px;
+  }
+
+  .velocity-marker{
+    top:21px;
+  }
+
+  .oct-scale{
+    width:24px;
+  }
+
+  .oct-cell{
+    font-size:9px;
+    letter-spacing:0;
+    padding-top:4px;
+  }
+
+}
+
+
+/* 가로 폰은 세로가 더 귀하다 — 툴바를 한 단계 더 줄인다.
+   두 줄이어도 합쳐서 60px 정도만 차지한다. */
+@media(max-height:500px){
+
+  .toolbar{
+    zoom:0.55;
+  }
+
+  .center-head{
+    zoom:0.62;
+  }
+
+}
