@@ -1,0 +1,13 @@
+{
+  "name": "armis-mml-editor",
+  "private": true,
+  "version": "1.0.0",
+  "description": "아르미스 MML 편집기. 편집기 자체는 정적 파일이라 빌드가 필요 없다. 여기 적힌 것은 회귀 시험을 돌리기 위한 것뿐이다.",
+  "scripts": {
+    "test": "node test.js",
+    "audit": "node audit.js"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
+  }
+}
