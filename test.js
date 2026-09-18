@@ -1822,6 +1822,93 @@ function testSoloSplit(win){
 
 
 /* ============================================================
+   19-2. 합주 모드 — 파트 안 겹침도 자르지 않는다
+   ============================================================
+   게임에서 한 트랙은 한 성부라 다음 음이 시작되면 앞 음이 잘린다.
+   예전 합주 모드는 파트를 그대로 트랙 하나에 담아, 화음+멜로디가 한
+   파트에 든 곡(피아노 등)의 지속음이 죄다 잘렸다. 이제는 마비꼬
+   MidiFile.createMMLEventList처럼 파트 안 겹침을 성부(①②…)로 나눈다.
+   미리듣기(buildPlaylist)도 MML과 같은 자리에서 잘라야 한다. */
+function testEnsembleOverlapSplit(win){
+
+  section("합주 모드 겹침 나누기");
+
+  const report = run(win, `
+    const vlq = n => { const b=[n&127]; n>>=7; while(n){ b.unshift((n&127)|128); n>>=7; } return b; };
+
+    /* 한 파트: 온음표 화음이 울리는 동안 4분음표 멜로디가 지나간다 */
+    const trk = [];
+    const ev = (d, bytes) => trk.push(...vlq(d), ...bytes);
+    ev(0, [0xC0, 0]);
+    for(let bar = 0; bar < 4; bar++){
+      ev(0, [0x90, 48, 80]); ev(0, [0x90, 55, 80]);              // 화음: 마디 내내
+      for(let i = 0; i < 4; i++){
+        ev(0, [0x90, 72 + i, 95]); ev(96, [0x80, 72 + i, 0]);    // 멜로디 4분음표
+      }
+      ev(0, [0x80, 48, 0]); ev(0, [0x80, 55, 0]);
+    }
+    ev(0, [0xFF, 0x2F, 0x00]);
+
+    const head = [0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,0,96];
+    const len = trk.length;
+    const buf = new Uint8Array([...head,0x4D,0x54,0x72,0x6B,(len>>24)&255,(len>>16)&255,(len>>8)&255,len&255,...trk]).buffer;
+
+    const song = convert(buf, { mode: "ensemble" });
+
+    /* MML에 실제로 적히는 울림 비율 (다음 묶음 시작에서 잘린다) */
+    let full = 0, sounding = 0;
+    for(const tr of song.tracks){
+      const gs = tr.groups;
+      for(let i = 0; i < gs.length; i++){
+        const nx = i + 1 < gs.length ? gs[i + 1].start : Infinity;
+        for(const n of gs[i].notes){
+          full += n.end - gs[i].start;
+          sounding += Math.min(n.end, nx) - gs[i].start;
+        }
+      }
+    }
+
+    /* 미리듣기가 겹치는 음을 MML과 같은 자리에서 자르는지 —
+       온음표 c 위로 0.25마디에 다른 음이 타건되면 0.25마디로 */
+    tracks.length = 0;
+    addTrack("피아노");
+    tracks[0].notes.push({ bar: 0,    len: 1,     row: 47, vel: 12, techs: [] });
+    tracks[0].notes.push({ bar: 0.25, len: 0.125, row: 43, vel: 12, techs: [] });
+    tracks[0].selected = true;
+    const built = buildPlaylist(0);
+    const secPerBar = 4 * 60 / tempo;
+    const long = built.list.find(x => x.key === rowToKey(47));
+    const cutBars = (long.until - long.at) / secPerBar;
+
+    return {
+      tracks: song.tracks.length,
+      ring: sounding / full,
+      cutBars
+    };
+  `);
+
+  check(
+    "겹치는 파트가 성부로 나뉜다 (트랙 2개 이상)",
+    report.tracks >= 2,
+    "트랙 " + report.tracks
+  );
+
+  check(
+    "지속음이 잘리지 않는다 (울림 100%)",
+    report.ring > 0.999,
+    "울림 " + (report.ring * 100).toFixed(1) + "%"
+  );
+
+  check(
+    "미리듣기도 인게임처럼 다음 타건에서 잘린다",
+    Math.abs(report.cutBars - 0.25) < 0.001,
+    String(report.cutBars)
+  );
+
+}
+
+
+/* ============================================================
    17. 처음/끝 이동과 접기
    ============================================================
    ⏮/⏭ 버튼과 End 키, 트랙 목록 접기(◀/▶), 출력 창 끌어서
@@ -2080,6 +2167,7 @@ async function main(){
   testKeymapSettings(win);
   testCompression(win);
   testSoloSplit(win);
+  testEnsembleOverlapSplit(win);
 
   console.log("");
 

@@ -14965,6 +14965,32 @@ function buildPlaylist(fromBar){
       const voice =
         voiceFor(track.name);
 
+      /* ── 인게임과 같은 잘림 (마비꼬 MMLMidiTrack 참고) ──
+
+         게임에서 한 트랙은 한 성부다: 어떤 음이 울리는 중에 같은
+         트랙의 다음 음(화음 묶음)이 시작되면 앞 음은 거기서 끊긴다.
+         MML을 만드는 쪽(buildEvents)도 정확히 그렇게 적는다 —
+         g.duration = min(원래 길이, 다음 묶음까지의 자리).
+
+         그런데 미리듣기만 원래 길이(note.len)대로 울리면, 편집기에서는
+         매끄럽게 들리다가 게임에 붙여넣는 순간 뚝뚝 끊긴다. 마비꼬는
+         재생 소리도 MML 노트 이벤트에서 만들기 때문에(MMLMidiTrack이
+         겹침을 다듬어 MIDI를 짓는다) 이런 차이가 아예 없다.
+
+         같은 원리로, 미리듣기 길이를 "MML에 실제로 적히는 길이"로
+         자른다. 이음줄(&)로 이어진 조각의 경계는 소리가 이어지므로
+         잘림 지점으로 치지 않는다. 잘린 뒤의 여운(피아노 감쇠 등)은
+         악기 소리의 몫이라 그대로 둔다.
+
+         attackTicks: 이 트랙에서 음이 새로 시작되는 자리(tick)들.
+         이음줄을 받는 조각은 새 타건이 아니므로 제외한다. */
+      const attackTicks =
+        [...new Set(
+          track.notes
+            .filter(n => !isTieTarget(track, n))
+            .map(n => Math.round(n.bar * WHOLE))
+        )].sort((a, b) => a - b);
+
       for(const note of track.notes){
 
         if(note.bar + note.len < fromBar){
@@ -14985,9 +15011,50 @@ function buildPlaylist(fromBar){
         const startBar =
           Math.max(fromBar, note.bar);
 
-        const endBar =
+        let endBar =
           note.bar +
           soundingLength(track, note);
+
+        /* 이음줄 사슬의 조각 경계 — 여기서 시작하는 음은 앞 음과
+           이어진 것이므로 잘림 지점이 아니다. */
+        const chainBounds = new Set();
+        {
+          let current = note;
+          let guard = 0;
+          while(current.tie && guard++ < 64){
+            const next =
+              track.notes[tiePartnerIndex(track, current)];
+            if(!next){
+              break;
+            }
+            chainBounds.add(Math.round(next.bar * WHOLE));
+            current = next;
+          }
+        }
+
+        /* 이 음이 울리는 동안 나오는 첫 타건에서 자른다 */
+        const startTick = Math.round(note.bar * WHOLE);
+        const endTick   = Math.round(endBar * WHOLE);
+
+        // startTick보다 큰 첫 타건 자리를 이진 탐색으로
+        let lo = 0, hi = attackTicks.length;
+        while(lo < hi){
+          const mid = (lo + hi) >> 1;
+          if(attackTicks[mid] <= startTick) lo = mid + 1;
+          else hi = mid;
+        }
+
+        for(let k = lo; k < attackTicks.length; k++){
+          const tick = attackTicks[k];
+          if(tick >= endTick){
+            break;
+          }
+          if(chainBounds.has(tick)){
+            continue;   // 이음줄로 이어지는 자리 — 소리가 안 끊긴다
+          }
+          endBar = tick / WHOLE;
+          break;
+        }
 
         if(endBar <= fromBar){
           continue;

@@ -2410,6 +2410,102 @@ function mergeVoicesToLimit(parts, ppq, limit) {
 }
 
 
+/* ── 성부를 정해진 수로 "덩어리 단위" 재배치 ──
+   mergeVoicesToLimit는 성부를 통째로 짝지어 합치므로, 곡 전체로 보면
+   안 잘려도 될 꼬리까지 잘리는 자리가 남는다 (짝은 곡 전체 손실로만
+   고르기 때문에 구간마다 최선이 아니다).
+
+   여기서는 마비꼬 MidiFile.createMMLEventList의 배치 규칙을 성부 수
+   제한에 맞게 확장한다 — 화음 덩어리를 시간순으로 하나씩,
+     · 자리가 나는(앞 음이 끝난) 성부가 있으면 그중 가장 딱 맞는 곳에,
+     · 자리가 없으면 잘리는 양(아직 울리는 앞 음들의 꼬리)이 가장 적은
+       성부에 앉힌다.
+   화음 덩어리는 통째로 움직이므로 화음이 갈라지지 않고, 페달이 구워진
+   피아노 실험에서 잘리는 울림이 12.9% → 8.7%로 줄었다.
+
+   세 성부는 같은 악기로 같은 시각에 울리므로 음이 어느 성부에 있는지는
+   소리로 구별되지 않는다 — refineSoloSplit과 같은 전제다.
+   악기가 섞여 있으면(프로그램 상이·드럼 포함) 통째 병합으로 물러난다. */
+function packClustersToLimit(parts, ppq, limit) {
+
+  const progOf = p => String(p.program === null ? 0 : p.program);
+
+  const mixed =
+    parts.some(p => p.channel === 9) ||
+    new Set(parts.map(progOf)).size > 1;
+
+  if (mixed || limit < 1) {
+    return mergeVoicesToLimit(parts, ppq, limit);
+  }
+
+  const all = parts
+    .flatMap(p => p.notes)
+    .sort((a, b) => a.startTick - b.startTick || a.key - b.key);
+
+  const mods = parts
+    .flatMap(p => p.mods || [])
+    .sort((a, b) => a.tick - b.tick);
+
+  const clusters = chordClustersOf(all, ppq);
+
+  // open: 이 성부에서 아직 울리는 중인 음들의 끝(tick)
+  const voices = Array.from(
+    { length: limit },
+    () => ({ notes: [], open: [] })
+  );
+
+  for (const c of clusters) {
+
+    let best = null, bestCost = Infinity, bestTight = -Infinity;
+
+    for (const v of voices) {
+
+      let cost = 0, lastEnd = -Infinity;
+      for (const end of v.open) {
+        if (end > c.s) cost += end - c.s;   // 여기 앉으면 잘리는 꼬리
+        if (end > lastEnd) lastEnd = end;
+      }
+
+      // 자리가 나는 성부끼리는 "가장 늦게 끝난" 곳이 딱 맞는 자리다
+      // (일찍 빈 성부는 더 긴 지속음이 들어올 자리로 아껴 둔다)
+      const tight = cost === 0 ? lastEnd : -Infinity;
+
+      if (cost < bestCost || (cost === bestCost && tight > bestTight)) {
+        best = v; bestCost = cost; bestTight = tight;
+      }
+
+    }
+
+    best.notes.push(...c.notes);
+
+    // 앞 음들은 (잘렸든 끝났든) 이 덩어리 시작 이후로는 울리지 않는다
+    best.open = c.notes.map(n => toTick(n.endTick, ppq));
+
+  }
+
+  const marks = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫"];
+  const base =
+    (parts[0].soloLabel || "").replace(/ [①-⑫]$/u, "") ||
+    ("T" + parts[0].trackIndex + " · ch" + parts[0].channel);
+
+  const out = voices
+    .filter(v => v.notes.length)
+    .map((v, i) => ({
+      ...parts[0],
+      id: parts[0].id + ":k" + i,
+      notes: v.notes.slice().sort((a, b) => a.startTick - b.startTick || a.key - b.key),
+      mods: mods.slice()
+    }));
+
+  out.forEach((p, i) => {
+    p.soloLabel = base + (out.length > 1 ? " " + (marks[i] || (i + 1)) : "");
+  });
+
+  return out;
+
+}
+
+
 /* ── 글자 수 균형 (서스테인 모드) ──
    여기서 "글자 수"는 게임이 세는 방식(gameCharCount — 음표와 쉼표의
    개수, 명령 글자는 공짜)이다. 원문 길이로 재면 2~3배 과하게 잘라 낸다.
@@ -2681,8 +2777,38 @@ function convert(buffer, options) {
     /* 트랙 수를 정해 준 경우(AI 채보는 한 사람 연주용 3트랙) 그만큼 합친다 */
     const limit = options.fitTracks | 0;
     if (limit > 0 && parts.length > limit) {
-      parts = mergeVoicesToLimit(parts, smf.ppq, limit);
+      parts = packClustersToLimit(parts, smf.ppq, limit);
     }
+  }
+
+  /* 합주(기본) 모드 — 파트 안의 겹침도 자르지 않는다.
+
+     게임에서 한 트랙은 한 성부라, 어떤 음이 울리는 중에 다음 음이
+     시작되면 앞 음은 거기서 끊긴다. 예전 합주 모드는 MIDI 파트를 그대로
+     트랙 하나에 담았는데, 피아노처럼 화음+멜로디가 한 파트에 든 곡은
+     지속음이 죄다 다음 음에서 잘려 인게임에서 뚝뚝 끊겨 들렸다
+     (페달 든 곡 실측: 울림의 69%가 사라짐). 편집기 미리듣기는 원래
+     길이로 울렸으니 게임에 붙여넣기 전에는 이 잘림이 들리지도 않았다.
+
+     마비꼬는 애초에 이렇게 하지 않는다 — MidiFile.createMMLEventList가
+     겹치는 음을 겹침 없는 파트들로 나눠 담고, 넘치면 트랙을 늘린다.
+     같은 원리로, 파트마다 겹침을 성부(①②…)로 나눈다. 파트끼리는 섞지
+     않으므로 악기 배정은 파트 단위 그대로다. 트랙이 늘 수는 있지만
+     합주는 여러 명이 연주하는 모드라 문제가 없고, 겹침이 없는 파트는
+     예전과 완전히 같다. 드럼(ch9)은 타격음이라 나누지 않는다. */
+  if (!options || (options.mode !== "voices" && options.mode !== "solo")) {
+    const marks = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫"];
+    parts = parts.flatMap(p => {
+      if (p.channel === 9) return [p];
+      const voices = splitPartByOverlap(p, smf.ppq);
+      if (voices.length > 1) {
+        const base = "T" + p.trackIndex + " · ch" + p.channel;
+        voices.forEach((v, i) => {
+          v.soloLabel = base + " " + (marks[i] || (i + 1));
+        });
+      }
+      return voices;
+    });
   }
 
   /* 솔로곡: 한 사람이 트랙 셋으로 다 연주한다.
@@ -2696,10 +2822,10 @@ function convert(buffer, options) {
     const merged = mergeForSolo(parts);
     if (merged) {
       merged.soloLabel = "솔로";
-      let voices = splitPartByOverlap(merged, smf.ppq);
-      if (voices.length > MAX_TRACKS) {
-        voices = mergeVoicesToLimit(voices, smf.ppq, MAX_TRACKS);
-      }
+      /* 겹침 없는 최소 성부(splitPartByOverlap)가 셋 이하로 나오는 곡은
+         packClustersToLimit도 같은 규칙("자리가 나면 그 성부")으로 앉히므로
+         결과가 같고, 셋을 넘는 곡만 덩어리 단위로 잘림을 최소화한다. */
+      let voices = packClustersToLimit([merged], smf.ppq, MAX_TRACKS);
       const marks = ["①", "②", "③"];
       voices.forEach((v, i) => {
         v.soloLabel = "솔로" + (voices.length > 1 ? " " + marks[i] : "");
